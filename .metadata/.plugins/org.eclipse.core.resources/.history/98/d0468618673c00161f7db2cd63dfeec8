@@ -1,0 +1,91 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/LinearLayout1"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+    
+    <Button
+        android:id="@+id/btnDisconnect"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#5FBA7D"
+        android:textColor="#ffffff"
+        android:text="@string/strBTDisconnect"/>
+    
+    <Spinner
+        android:id="@+id/spinSetTimezone"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+    
+    <Button
+        android:id="@+id/btnGetSysTime"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#5FBA7D"
+        android:textColor="#ffffff"
+        android:text="@string/strBtnGetSysTime"/>
+    
+    
+    <TextView
+        android:id="@+id/txtvSysTime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:text="@string/strTimerVal"
+        android:textSize="50sp" />
+
+    <Button
+        android:id="@+id/btnSetDateTime"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#5FBA7D"
+        android:textColor="#ffffff"
+        android:text="@string/strBtnSetDateTime"/>
+
+    <TextView
+        android:id="@+id/txtvTimeSelected"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#66A4CB"
+        android:layout_gravity="center_horizontal"
+        android:text="@string/strInitialDateTime"
+        android:textSize="50sp" />
+
+    <EditText 
+        android:id="@+id/editMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:singleLine="true"
+        android:hint="@string/strSendMessage"/>
+    
+    <Button 
+        android:id="@+id/btnSendMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#5FBA7D"
+        android:textColor="#ffffff"
+        android:text="@string/strBtnSend"/>
+    
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#66A4CB"
+        android:text="@string/strTxtvShowSendData"
+        android:textSize="50sp" />
+    
+    <ScrollView 
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        
+        <TextView 
+            android:id="@+id/txtvMessages"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="50sp"
+            android:textColor="#66A4CB"
+            android:text=""/>
+    </ScrollView>
+
+
+</LinearLayout>

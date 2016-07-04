@@ -1,0 +1,359 @@
+package f2k.pic_hc06_ds1307;
+
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Locale;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.UUID;
+
+import f2k.pic_hc06_ds1307.DateTime;
+import f2k.pic_hc06_ds1307.DateTimePicker;
+import f2k.pic_hc06_ds1307.SimpleDateTimePicker;
+import android.support.v7.app.AppCompatActivity;
+import android.os.Bundle;
+import android.os.Handler;
+import android.bluetooth.BluetoothSocket;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+import android.app.AlertDialog;
+import android.app.ProgressDialog;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.os.AsyncTask;
+
+
+public class Timer_ds1307 extends	AppCompatActivity implements DateTimePicker.OnDateTimeSetListener{
+	
+	Button	btnGetSysTime, btnSetTimeDS1307, btnBTDisconnect, btnSendMsg;
+	TextView	txtvSysTime, txtvTimeSetDS1307, txtvMessages;
+	EditText	editInputMsg;
+	String BTAddress = null;
+    private ProgressDialog progress;
+    BluetoothAdapter BTAdapter = null;
+    BluetoothSocket BTSocket = null;
+    private boolean isBtConnected = false;
+    static final UUID myUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");	// HC05 - UUID
+    
+    public static final int TIME_DIALOG_ID = 100;
+	public static final int DATE_DIALOG_ID = 101;
+	public static final String	DATETIME_FORMAT = "MM/dd/yyyy HH:mm:ss";
+	
+	String strDateTime;
+	
+	Timer timer;
+	TimerTask timerTask;
+	final Handler timeHandler = new Handler();
+	Calendar sysCalendar;
+
+    @Override
+    protected void 	onCreate(Bundle savedInstanceState)
+    {
+        super.onCreate(savedInstanceState);
+
+        Intent newint = getIntent();
+        BTAddress = newint.getStringExtra(MainActivity.EXTRA_ADDRESS); //receive the BTAddress of the bluetooth device
+        setContentView(R.layout.timer_ds1307);
+
+        getFormWidgets();
+        addEventFormWidgets();
+        new ConnectBT().execute(); //Call the class to connect
+    }
+    
+    @Override
+    public void		onBackPressed()
+    {
+    	AlertDialog.Builder dlgBuilder = new AlertDialog.Builder(Timer_ds1307.this);
+    	dlgBuilder.setTitle("Bluetooth Disconnect");
+    	dlgBuilder.setMessage("This will disconnect Bluetooth device. Are you sure?");
+    	dlgBuilder.setPositiveButton("YES", new DialogInterface.OnClickListener() {
+			
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				// TODO Auto-generated method stub
+				BTDisconnect();
+				Timer_ds1307.this.finish();
+			}
+		});
+    	
+    	dlgBuilder.setNegativeButton("NO", new DialogInterface.OnClickListener() {
+			
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				// TODO Auto-generated method stub
+				dialog.cancel();
+			}
+		});
+    	dlgBuilder.create().show();
+    }
+
+
+    public	void	getFormWidgets()
+    {
+    	btnGetSysTime = (Button)findViewById(R.id.btnGetSysTime);
+        btnSetTimeDS1307 = (Button)findViewById(R.id.btnSetDateTime);
+        txtvSysTime = (TextView)findViewById(R.id.txtvSysTime);
+        txtvTimeSetDS1307 = (TextView)findViewById(R.id.txtvTimeSelected);
+        btnBTDisconnect = (Button)findViewById(R.id.btnDisconnect);
+        btnSendMsg = (Button)findViewById(R.id.btnSendMessage);
+        editInputMsg = (EditText)findViewById(R.id.editMessage);
+        txtvMessages = (TextView)findViewById(R.id.txtvMessages);
+    }
+    
+    public	void	addEventFormWidgets()
+    {
+    	btnGetSysTime.setOnClickListener(new ButtonEventHandler());
+    	btnSetTimeDS1307.setOnClickListener(new ButtonEventHandler());
+    	btnBTDisconnect.setOnClickListener(new ButtonEventHandler());
+    	btnSendMsg.setOnClickListener(new ButtonEventHandler());
+    }
+    
+    private void 	showToast(String s)
+    {
+        Toast.makeText(getApplicationContext(),s,Toast.LENGTH_LONG).show();
+    }
+    
+    private void	setTimeDS1307()
+    {
+    	if(BTSocket != null)
+    	{
+    		try
+    		{
+    			//byte[] strDayTime = {55, 59, 17, 1, 12, 6, 16, 0x00, 0x0D};
+    			byte[] byteDayTime = new byte[9];
+
+    			sysCalendar = Calendar.getInstance();
+    			byteDayTime[0] = (byte)sysCalendar.get(Calendar.SECOND);
+    			byteDayTime[1] = (byte)sysCalendar.get(Calendar.MINUTE);
+    			byteDayTime[2] = (byte)sysCalendar.get(Calendar.HOUR_OF_DAY);
+    			byteDayTime[3] = (byte)sysCalendar.get(Calendar.DAY_OF_WEEK);
+    			byteDayTime[4] = (byte)sysCalendar.get(Calendar.DAY_OF_MONTH);
+    			byteDayTime[5] = (byte)(sysCalendar.get(Calendar.MONTH) + 1); 
+    			byteDayTime[6] = (byte)(sysCalendar.get(Calendar.YEAR) % 100);
+    			byteDayTime[7] = 0x00;
+    			byteDayTime[8] = 0x0D;
+    			
+    			BTSocket.getOutputStream().write(byteDayTime);
+    			txtvMessages.setText(sysCalendar.getTime().toString());
+    			
+    		} catch(Exception ex)
+    		{
+    			showToast("Error in sending data!");
+    		}
+    		
+    	}
+    }
+    
+    private void	sendBTMessage()
+    {
+    	if(BTSocket != null)
+    	{
+    		try
+    		{
+    			String strMessage = editInputMsg.getText().toString();
+    			if(strMessage.length() < 16)
+    			{
+    				strMessage += '\n';
+    			}
+    			
+    			BTSocket.getOutputStream().write(strMessage.getBytes());
+    			txtvMessages.setText(strMessage);
+    		} catch(Exception ex)
+    		{
+    			showToast("Error in sending data!");
+    		}
+    	}
+    }
+    
+    private void	BTDisconnect()
+    {
+        if (BTSocket!=null) //If the btSocket is busy
+        {
+            try
+            {
+                BTSocket.close(); //close connection
+            }
+            catch (IOException e)
+            { 
+            	showToast("Error");
+            }
+        }
+        finish(); //return to the first layout
+
+    }
+        
+    
+    private class	ButtonEventHandler	implements	OnClickListener
+    {
+    	@Override
+    	public void onClick(View v)
+    	{
+    		switch(v.getId())
+    		{
+    		case	R.id.btnDisconnect:
+    			BTDisconnect();
+    			break;
+    		case	R.id.btnGetSysTime:
+    			startTimer();
+    			break;
+    		case	R.id.btnSetDateTime:
+    			showDateTimePicker();
+    			break;
+    		case	R.id.btnSendMessage:
+    			sendBTMessage();
+    			break;
+    		}
+    	}
+    }
+    
+    private class 	ConnectBT extends AsyncTask<Void, Void, Void>  // UI thread
+    {
+        private boolean ConnectSuccess = true; //if it's here, it's almost connected
+
+        @Override
+        protected void onPreExecute()
+        {
+            progress = ProgressDialog.show(Timer_ds1307.this, "Connecting...", "Please wait!!!");  //show a progress dialog
+        }
+
+        @Override
+        protected Void doInBackground(Void... devices) //while the progress dialog is shown, the connection is done in background
+        {
+            try
+            {
+                if (BTSocket == null || !isBtConnected)
+                {
+                 BTAdapter = BluetoothAdapter.getDefaultAdapter();//get the mobile bluetooth device
+                 BluetoothDevice dispositivo = BTAdapter.getRemoteDevice(BTAddress);//connects to the device's address and checks if it's available
+                 BTSocket = dispositivo.createInsecureRfcommSocketToServiceRecord(myUUID);//create a RFCOMM (SPP) connection
+                 BluetoothAdapter.getDefaultAdapter().cancelDiscovery();
+                 BTSocket.connect();//start connection
+                }
+            }
+            catch (IOException e)
+            {
+                ConnectSuccess = false;//if the try failed, you can check the exception here
+            }
+            return null;
+        }
+        @Override
+        protected void onPostExecute(Void result) //after the doInBackground, it checks if everything went fine
+        {
+            super.onPostExecute(result);
+
+            if (!ConnectSuccess)
+            {
+                showToast("Connection Failed. Is it a SPP Bluetooth? Try again.");
+                finish();
+            }
+            else
+            {
+                showToast("Connected.");
+                isBtConnected = true;
+            }
+            progress.dismiss();
+        }
+    }
+    
+    
+    public	void	initializeTimerTask() {
+		timerTask = new TimerTask() {
+			
+			public void run() {
+				timeHandler.post(new Runnable() {
+					public void run() {
+						sysCalendar = Calendar.getInstance();
+						SimpleDateFormat simpleDateFormat = 
+							     new SimpleDateFormat(DATETIME_FORMAT, Locale.getDefault());
+						strDateTime = simpleDateFormat.format(sysCalendar.getTime());
+						txtvSysTime.setText(strDateTime);
+					}
+				});
+			}
+		};
+	}
+
+    public	void	startTimer() {
+		timer = new Timer();
+		setTimeDS1307();
+		initializeTimerTask();
+		timer.schedule(timerTask, 0, 1000); //
+	}
+    
+    private static	String pad(int c) {
+		if (c >= 10)
+		   return String.valueOf(c);
+		else
+		   return ("0" + String.valueOf(c));
+	}
+    
+	@Override
+    public	void	DateTimeSet(Date date) {
+        DateTime mDateTime = new DateTime(date);
+        
+        int[] setDateTime = new int[8];
+        setDateTime[0] = mDateTime.getSecondOfMinute();
+        setDateTime[1] = mDateTime.getMinuteOfHour();
+        setDateTime[2] = mDateTime.getHourOfDay();
+        setDateTime[3] = mDateTime.getDayOfWeek();
+        setDateTime[4] = mDateTime.getDayOfMonth();
+        setDateTime[5] = mDateTime.getMonthOfYear() + 1;
+        setDateTime[6] = mDateTime.getYear();
+        
+        if(BTSocket != null)
+    	{
+    		try
+    		{
+    			byte[] byteDayTime = new byte[8];
+
+    			for(int j = 0; j < 6; ++j)
+    			{
+    				byteDayTime[j] = (byte)setDateTime[j];
+    			}
+    			byteDayTime[6] = (byte)(setDateTime[6]%100);
+    			byteDayTime[7] = 0x0D;
+    			
+    			BTSocket.getOutputStream().write(byteDayTime);
+    			txtvMessages.setText(byteDayTime.toString().length() + "");
+    			
+    		} catch(Exception ex)
+    		{
+    			showToast("Error in sending data");
+    		}
+    		
+    	}
+        
+        String strDate = new String();
+        strDate += (setDateTime[3] == 1)  ?	 "CN" : ("T" + setDateTime[3]);  
+        strDate =	pad(setDateTime[4]) + 
+        					"/" + 
+        					pad(setDateTime[5]) + 
+        					"/" + 
+        					setDateTime[6] +
+        					" " +
+        					pad(setDateTime[2]) + 
+        					":" + 
+        					pad(setDateTime[1]) +
+        					":" + 
+        					pad(setDateTime[0]);
+        					
+		txtvTimeSetDS1307.setText(strDate);
+    }
+	
+	public void 	showDateTimePicker() {
+		SimpleDateTimePicker.make("Set Date & Time", new Date(), Timer_ds1307.this, getSupportFragmentManager()).show();
+	}
+		
+    
+}
+
+
+

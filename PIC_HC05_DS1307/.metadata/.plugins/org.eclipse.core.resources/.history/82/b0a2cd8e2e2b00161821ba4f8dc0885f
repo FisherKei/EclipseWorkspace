@@ -1,0 +1,255 @@
+package f2k.hc05_piccontroller;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Locale;
+import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
+
+import android.support.v4.app.FragmentActivity;
+import android.app.AlertDialog;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.Bundle;
+import android.os.Handler;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.ListView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+
+public class MainActivity extends FragmentActivity implements DateTimePicker.OnDateTimeSetListener{
+	private Button	btnBTScanner;
+	private Button	btnGetDateTime;
+	private Button	btnSetDateTime;
+	private TextView txtvDisplayTime;
+	private TextView txtvShowSelectedDateTime;
+
+	static final int TIME_DIALOG_ID = 100;
+	static final int DATE_DIALOG_ID = 101;
+	static final int REQUEST_ENABLE_BT = 1;
+	static final String	DATETIME_FORMAT = "MM/dd/yyyy HH:mm:ss";
+	
+	String strDateTime;
+	
+	Timer timer;
+	TimerTask timerTask;
+	final Handler timeHandler = new Handler();
+	Calendar sysCalendar;
+	Calendar userCalendar;
+	
+	ListView lstvBTDevices;
+	ArrayList<String>	arrListBT = null;
+	ArrayAdapter<String>	adapterBT = null;
+	
+	BluetoothAdapter bluetoothAdapter;
+	
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        
+        getFormWidgets();
+        setupBluetooth();
+        addEventFormWidgets();
+    }
+    
+    public	void	getFormWidgets()
+    {
+    	btnBTScanner = (Button)findViewById(R.id.btnBTScan);
+        btnGetDateTime = (Button)findViewById(R.id.btnGetSysTime);
+        btnSetDateTime = (Button)findViewById(R.id.btnSetDateTime);
+        txtvDisplayTime = (TextView)findViewById(R.id.txtvSysTime);
+        txtvShowSelectedDateTime = (TextView)findViewById(R.id.txtvTimeSelected);
+        lstvBTDevices = (ListView)findViewById(R.id.lstvBTDevices);
+        arrListBT = new ArrayList<String>();
+        adapterBT = new ArrayAdapter<String>(this,
+        									android.R.layout.simple_list_item_1,
+        									arrListBT);
+        lstvBTDevices.setAdapter(adapterBT);
+    }
+    
+    public	void	addEventFormWidgets()
+    {
+    	btnGetDateTime.setOnClickListener(new ButtonEventHandler());
+    	btnSetDateTime.setOnClickListener(new ButtonEventHandler());
+    	btnBTScanner.setOnClickListener(new ButtonEventHandler());
+    }
+    
+    @Override
+    public boolean	onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean	onOptionsItemSelected(MenuItem item) {
+
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        int id = item.getItemId();
+        if (id == R.id.action_settings) {
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+    
+    @Override
+	protected void	onResume() {
+		super.onResume();
+		//startTimer();
+	}
+  
+    public 	void	setupBluetooth()
+    {
+    	// 1. Get the Bluetooth adapter:
+    	bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+    	if(bluetoothAdapter == null)
+    	{
+    		new AlertDialog.Builder(this)
+            .setTitle("Not compatible dectected!")
+            .setMessage("Your phone does not support Bluetooth!")
+            .setPositiveButton("Exit", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int which) {
+                    System.exit(0);
+                }
+            })
+            .setIcon(android.R.drawable.alert_light_frame)
+            .show();
+    	}
+    	
+    	// 2. Enable Bluetooth:
+    	if(!bluetoothAdapter.isEnabled())
+    	{
+    		//Intent enableBTIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+			Intent discoverableIntent = new Intent(
+					BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+			discoverableIntent.putExtra(
+					BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
+			startActivityForResult(discoverableIntent, REQUEST_ENABLE_BT);
+    	}
+    	
+    	// 3. Add paired BT devices:
+    	Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
+    	if(pairedDevices.size() > 0)
+    	{
+    		for(BluetoothDevice BTDevices : pairedDevices)
+    		{
+    			arrListBT.add(BTDevices.getName() + "\n" + BTDevices.getAddress());
+    		}
+    		adapterBT.notifyDataSetChanged();
+    	}
+    }
+    
+    public 	void	scanBTDevices()
+    {
+    	final BroadcastReceiver mReceiver = new BroadcastReceiver(){
+    		public void onReceive(Context context, Intent intent) {
+    	        String action = intent.getAction();
+    	        // When discovery finds a device
+    	        if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+    	            // Get the BluetoothDevice object from the Intent
+    	            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+    	            // Add the name and address to an array adapter to show in a ListView
+    	            arrListBT.add(device.getName() + "\n" + device.getAddress());
+    	            adapterBT.notifyDataSetChanged();
+    	        }
+    	    }
+    	};
+    	// Register the BroadcastReceiver
+    	IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+    	getActivity().registerReceiver(mReceiver, filter); // Don't forget to unregister during onDestroy
+    }
+    
+    public	void	initializeTimerTask() {
+		timerTask = new TimerTask() {
+			
+			public void run() {
+				timeHandler.post(new Runnable() {
+					public void run() {
+						sysCalendar = Calendar.getInstance();
+						SimpleDateFormat simpleDateFormat = 
+							     new SimpleDateFormat(DATETIME_FORMAT, Locale.getDefault());
+						strDateTime = simpleDateFormat.format(sysCalendar.getTime());
+						txtvDisplayTime.setText(strDateTime);
+					}
+				});
+			}
+		};
+	}
+
+    public	void	startTimer() {
+		timer = new Timer();
+		initializeTimerTask();
+		timer.schedule(timerTask, 0, 1000); //
+	}
+    
+    private static	String pad(int c) {
+		if (c >= 10)
+		   return String.valueOf(c);
+		else
+		   return ("0" + String.valueOf(c));
+	}
+    
+	@Override
+    public	void	DateTimeSet(Date date) {
+        DateTime mDateTime = new DateTime(date);
+        String strDate =	pad(mDateTime.getDayOfMonth()) + 
+        					"/" + 
+        					pad(mDateTime.getMonthOfYear() + 1) + 
+        					"/" + 
+        					mDateTime.getYear() +
+        					" " +
+        					pad(mDateTime.getHourOfDay()) + 
+        					":" + 
+        					pad(mDateTime.getMinuteOfHour()) +
+        					":" + 
+        					pad(mDateTime.getSecondOfMinute());
+        					
+		txtvShowSelectedDateTime.setText(strDate);
+    }
+	
+	public void 	showDateTimePicker() {
+		SimpleDateTimePicker.make("Set Date & Time", new Date(), MainActivity.this,
+				getSupportFragmentManager()).show();
+	}
+	
+	private class	ButtonEventHandler	implements	OnClickListener
+    {
+    	@Override
+    	public void onClick(View v)
+    	{
+    		switch(v.getId())
+    		{
+    		case	R.id.btnBTScan:
+    			scanBTDevices();
+    			break;
+    		case	R.id.btnGetSysTime:
+    			startTimer();
+    			break;
+    		case	R.id.btnSetDateTime:
+    			showDateTimePicker();
+    			break;
+    		}
+    	}
+    }
+	
+}
+
+
+

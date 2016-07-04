@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring accessors="true" comment="Delete element from project &apos;PIC_HC06_DS1307&apos;&#x0D;&#x0A;- Original project: &apos;PIC_HC06_DS1307&apos;&#x0D;&#x0A;- Original element: &apos;f2k.pic_hc06_ds1307.ConnectBT.java&apos;" description="Delete element" element1="/src&lt;f2k.pic_hc06_ds1307{ConnectBT.java" elements="1" flags="589830" id="org.eclipse.jdt.ui.delete" resources="0" stamp="1467028161778" subPackages="false" version="1.0"/>
+</session>

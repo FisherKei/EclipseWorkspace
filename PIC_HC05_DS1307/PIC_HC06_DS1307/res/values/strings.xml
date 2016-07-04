@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">PIC_HC06_DS1307</string>
+    <string name="action_settings">Settings</string>
+    <string name="title_activity_led_control">ledControl</string>
+	<string name="strTimerVal">mm/dd/yyyy 00:00:00</string>
+    <string name="strBtnGetSysTime">Get System Time</string>
+    <string name="strBtnSetDateTime">Set Date-Time</string>
+    <string name="strInitialDateTime">01/01/2016 00:00:00</string>
+    <string name="strTxtvShowSendData">Data send:</string>
+    <string name="strTabDate">DATE</string>
+    <string name="strTabTime">TIME</string>
+    <string name="strBTDisconnect">Disconnect</string>
+    <string name="strSendMessage">Input message here &#8230;</string>
+    <string name="strBtnSend">Send message</string>
+    <string name="strBtnPaired">Paired Devices</string>
+
+</resources>

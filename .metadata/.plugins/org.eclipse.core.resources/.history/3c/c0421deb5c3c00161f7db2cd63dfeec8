@@ -1,0 +1,57 @@
+package f2k.pic_hc06_ds1307;
+
+import java.io.IOException;
+
+import android.app.ProgressDialog;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.os.AsyncTask;
+
+private class 	ConnectBT extends AsyncTask<Void, Void, Void>  // UI thread
+{
+    private boolean ConnectSuccess = true; //if it's here, it's almost connected
+
+    @Override
+    protected void onPreExecute()
+    {
+        progress = ProgressDialog.show(Timer_ds1307.this, "Connecting...", "Please wait!!!");  //show a progress dialog
+    }
+
+    @Override
+    protected Void doInBackground(Void... devices) //while the progress dialog is shown, the connection is done in background
+    {
+        try
+        {
+            if (BTSocket == null || !isBtConnected)
+            {
+             BTAdapter = BluetoothAdapter.getDefaultAdapter();//get the mobile bluetooth device
+             BluetoothDevice dispositivo = BTAdapter.getRemoteDevice(BTAddress);//connects to the device's address and checks if it's available
+             BTSocket = dispositivo.createInsecureRfcommSocketToServiceRecord(myUUID);//create a RFCOMM (SPP) connection
+             BluetoothAdapter.getDefaultAdapter().cancelDiscovery();
+             BTSocket.connect();//start connection
+            }
+        }
+        catch (IOException e)
+        {
+            ConnectSuccess = false;//if the try failed, you can check the exception here
+        }
+        return null;
+    }
+    @Override
+    protected void onPostExecute(Void result) //after the doInBackground, it checks if everything went fine
+    {
+        super.onPostExecute(result);
+
+        if (!ConnectSuccess)
+        {
+            showToast("Connection Failed. Is it a SPP Bluetooth? Try again.");
+            finish();
+        }
+        else
+        {
+            showToast("Connected.");
+            isBtConnected = true;
+        }
+        progress.dismiss();
+    }
+}
